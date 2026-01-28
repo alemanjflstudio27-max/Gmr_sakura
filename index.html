@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GMR SAKURA - Evolución</title>
+    <!-- Frameworks -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <!-- Firebase -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-app.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-auth.js";
+        import { getFirestore, doc, onSnapshot, updateDoc, setDoc } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
+
+        const firebaseConfig = JSON.parse(__firebase_config);
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'gmr-sakura-final';
+
+        window.FB_SERVICES = { auth, db, appId, signInAnonymously, onAuthStateChanged, doc, onSnapshot, updateDoc, setDoc };
+    </script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
+        body { font-family: 'Inter', sans-serif; background-color: #050508; color: white; margin: 0; overflow-x: hidden; }
+        
+        /* Animación de pulso neón para la foto */
+        .neon-pulse { animation: neonPulse 2s infinite; }
+        @keyframes neonPulse {
+            0%, 100% { opacity: 0.3; transform: scale(1); box-shadow: 0 0 20px rgba(0,242,255,0.2); }
+            50% { opacity: 0.6; transform: scale(1.05); box-shadow: 0 0 40px rgba(0,242,255,0.5); }
+        }
+
+        /* Efecto de brillo que recorre el botón */
+        .shimmer { position: relative; overflow: hidden; }
+        .shimmer::after {
+            content: ''; position: absolute; top: 0; left: -100%; width: 50%; height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+            transform: skewX(-25deg); animation: shimmer 3s infinite;
+        }
+        @keyframes shimmer { 0% { left: -100%; } 100% { left: 200%; } }
+
+        /* Fondo de cuadrícula cibernética */
+        .bg-grid {
+            background-image: linear-gradient(#00f2ff 1px, transparent 1px), linear-gradient(90deg, #00f2ff 1px, transparent 1px);
+            background-size: 30px 30px;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        function App() {
+            const [user, setUser] = useState(null);
+            const [recaudado, setRecaudado] = useState(0);
+            const [meta] = useState(1500);
+            const [showAdmin, setShowAdmin] = useState(false);
+            const [adminPass, setAdminPass] = useState('');
+            const [montoInput, setMontoInput] = useState('');
+            const [isAdminAuth, setIsAdminAuth] = useState(false);
+            const [toast, setToast] = useState('');
+            const [activeTab, setActiveTab] = useState(null);
+            const [lang, setLang] = useState('es');
+
+            const AD_LINK = "https://www.effectivegatecpm.com/b4g7emb7e?key=6ecc92e70221a623f34ddcc5d9f426d9";
+
+            const t = {
+                es: {
+                    meta: "Meta del Proyecto",
+                    copiado: "¡Copiado! 🚀",
+                    apoyar: "APOYAR GRATIS (VER ANUNCIO)",
+                    frase: "Esta meta es para adquirir una PC y un mejor dispositivo móvil, permitiéndome realizar contenido de mucha mejor calidad para todos ustedes.",
+                    huella: "DEJANDO HUELLA",
+                    actualizar: "ACTUALIZADO",
+                },
+                en: {
+                    meta: "Project Goal",
+                    copiado: "Copied! 🚀",
+                    apoyar: "SUPPORT FOR FREE (WATCH AD)",
+                    frase: "This goal is to acquire a PC and a better mobile device, allowing me to create much higher quality content for all of you.",
+                    huella: "LEAVING A MARK",
+                    actualizar: "UPDATED",
+                }
+            };
+
+            useEffect(() => {
+                const init = async () => {
+                    if (!window.FB_SERVICES) return;
+                    const { auth, signInAnonymously, onAuthStateChanged } = window.FB_SERVICES;
+                    try {
+                        await signInAnonymously(auth);
+                        onAuthStateChanged(auth, (u) => setUser(u));
+                    } catch (e) { console.error(e); }
+                };
+                init();
+            }, []);
+
+            useEffect(() => {
+                if (!user || !window.FB_SERVICES) return;
+                const { db, appId, doc, onSnapshot, setDoc } = window.FB_SERVICES;
+                const docRef = doc(db, 'artifacts', appId, 'public', 'contador');
+                const unsubscribe = onSnapshot(docRef, (snapshot) => {
+                    if (snapshot.exists()) setRecaudado(snapshot.data().monto || 0);
+                    else setDoc(docRef, { monto: 0, meta: 1500 });
+                });
+                return () => unsubscribe();
+            }, [user]);
+
+            const showToast = (msg) => {
+                setToast(msg);
+                setTimeout(() => setToast(''), 3000);
+            };
+
+            const copyToClipboard = (text) => {
+                const el = document.createElement('textarea');
+                el.value = text;
+                document.body.appendChild(el);
+                el.select();
+                document.execCommand('copy');
+                document.body.removeChild(el);
+                showToast(t[lang].copiado);
+            };
+
+            const modMonto = async (op) => {
+                const { db, appId, doc, updateDoc } = window.FB_SERVICES;
+                const val = parseFloat(montoInput);
+                if (isNaN(val)) return;
+                const docRef = doc(db, 'artifacts', appId, 'public', 'contador');
+                let nt = op === 'sum' ? recaudado + val : op === 'sub' ? Math.max(0, recaudado - val) : val;
+                try {
+                    await updateDoc(docRef, { monto: nt });
+                    setMontoInput('');
+                    showToast(t[lang].actualizar);
+                } catch (e) { showToast("Error"); }
+            };
+
+            const porcentaje = Math.min((recaudado / meta) * 100, 100);
+
+            return (
+                <div className="min-h-screen flex flex-col items-center justify-center p-4 relative">
+                    {/* Fondo Estilo Cyberpunk */}
+                    <div className="absolute inset-0 z-0">
+                        <div className="absolute inset-0 bg-grid opacity-10"></div>
+                        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[#0d0d12]/80 to-[#050508]"></div>
+                    </div>
+
+                    {/* Selector de Idioma */}
+                    <div className="z-20 mb-6 flex bg-white/5 p-1 rounded-full border border-white/10 backdrop-blur-md">
+                        <button onClick={() => setLang('es')} className={`px-5 py-1.5 rounded-full text-[10px] font-black tracking-widest transition-all ${lang === 'es' ? 'bg-[#00f2ff] text-black shadow-[0_0_15px_rgba(0,242,255,0.5)]' : 'text-gray-500 hover:text-white'}`}>ESP</button>
+                        <button onClick={() => setLang('en')} className={`px-5 py-1.5 rounded-full text-[10px] font-black tracking-widest transition-all ${lang === 'en' ? 'bg-[#00f2ff] text-black shadow-[0_0_15px_rgba(0,242,255,0.5)]' : 'text-gray-500 hover:text-white'}`}>ENG</button>
+                    </div>
+
+                    {/* Tarjeta Glassmorphism */}
+                    <div className="z-10 bg-[#12121a]/95 backdrop-blur-2xl border border-white/10 rounded-[45px] w-full max-w-[400px] p-8 text-center shadow-[0_0_50px_rgba(0,0,0,0.8)] relative overflow-hidden">
+                        <div className="absolute -inset-[1px] bg-gradient-to-br from-[#00f2ff] via-transparent to-[#7000ff] rounded-[45px] opacity-20 -z-10"></div>
+
+                        {/* Avatar */}
+                        <div className="relative w-32 h-32 mx-auto mb-6">
+                            <div className="absolute inset-0 rounded-full bg-[#00f2ff] blur-2xl opacity-20 neon-pulse"></div>
+                            <img src="https://i.ibb.co/MkH478r5/image.jpg" className="w-full h-full rounded-full object-cover border-4 border-[#00f2ff] relative z-10 shadow-[0_0_30px_rgba(0,242,255,0.3)]" />
+                        </div>
+
+                        <h1 className="text-3xl font-black tracking-tighter uppercase mb-1">GMR <span className="text-[#00f2ff]">SAKURA</span></h1>
+                        <p className="text-[10px] tracking-[6px] text-[#00f2ff] font-bold uppercase mb-8 opacity-70 italic">Estación Evolución</p>
+
+                        {/* Caja de Progreso */}
+                        <div className="mb-8 bg-black/60 p-6 rounded-[32px] border border-white/5 shadow-inner">
+                            <div className="flex justify-between items-end mb-3">
+                                <div className="text-left">
+                                    <span className="text-[9px] uppercase tracking-widest text-[#00f2ff] font-black block opacity-70 mb-1">{t[lang].meta}</span>
+                                    <span className="text-4xl font-black text-white tracking-tighter">${recaudado.toLocaleString()}</span>
+                                </div>
+                                <span className="text-gray-500 font-mono text-xs mb-1">/ $1,500</span>
+                            </div>
+                            <div className="w-full bg-white/5 h-3 rounded-full overflow-hidden border border-white/5 mb-4">
+                                <div className="h-full bg-gradient-to-r from-[#00f2ff] via-[#00a2ff] to-[#7000ff] transition-all duration-1000" style={{ width: `${porcentaje}%` }}></div>
+                            </div>
+                            <p className="text-[11px] leading-relaxed text-gray-400 font-medium italic border-t border-white/5 pt-4">"{t[lang].frase}"</p>
+                        </div>
+
+                        {/* Botones */}
+                        <div className="space-y-4">
+                            <button onClick={() => { showToast("Cargando..."); setTimeout(() => window.open(AD_LINK, '_blank'), 500); }} className="shimmer w-full py-5 px-6 rounded-2xl bg-[#00f2ff] text-black font-black uppercase text-xs tracking-widest shadow-[0_0_25px_rgba(0,242,255,0.4)] transition-transform active:scale-95">
+                                📺 {t[lang].apoyar}
+                            </button>
+
+                            <div className="h-px bg-white/10 my-6"></div>
+
+                            {/* BINANCE */}
+                            <button onClick={() => setActiveTab(activeTab === 'binance' ? null : 'binance')} className={`w-full py-4 px-6 rounded-2xl flex items-center justify-between border transition-all ${activeTab === 'binance' ? 'bg-[#FCD535] text-black border-transparent' : 'bg-white/5 border-white/10 text-white'}`}>
+                                <div className="flex items-center font-black uppercase text-[10px] tracking-widest">
+                                    <svg viewBox="0 0 24 24" className={`w-4 h-4 mr-3 ${activeTab === 'binance' ? 'fill-black' : 'fill-[#FCD535]'}`}><path d="M12 1L8.5 4.5l3.5 3.5 3.5-3.5L12 1zm7 7l-3.5 3.5 3.5 3.5 3.5-3.5L19 8zm-7 7l-3.5 3.5 3.5 3.5 3.5-3.5L12 15zM5 8L1.5 11.5 5 15l3.5-3.5L5 8z"/></svg>
+                                    Binance Pay
+                                </div>
+                                <span className="text-[10px] opacity-50">{activeTab === 'binance' ? '▼' : '▶'}</span>
+                            </button>
+                            {activeTab === 'binance' && <div onClick={() => copyToClipboard('aleman.j.fl.studio27@gmail.com')} className="bg-black/40 border border-white/10 p-4 rounded-2xl text-[10px] font-mono cursor-pointer break-all animate-in slide-in-from-top-2">aleman.j.fl.studio27@gmail.com</div>}
+
+                            {/* PAGO MOVIL */}
+                            <button onClick={() => setActiveTab(activeTab === 'pm' ? null : 'pm')} className={`w-full py-4 px-6 rounded-2xl flex items-center justify-between border transition-all ${activeTab === 'pm' ? 'bg-[#c1272d] text-white border-transparent' : 'bg-white/5 border-white/10 text-white'}`}>
+                                <div className="flex items-center font-black uppercase text-[10px] tracking-widest">
+                                    <div className="w-4 h-4 mr-3 bg-white rounded flex items-center justify-center p-0.5"><svg viewBox="0 0 100 100" className="w-full h-full"><path d="M15 15 H85 V85 H15 Z" fill="#c1272d"/><circle cx="65" cy="50" r="10" fill="white"/></svg></div>
+                                    Pago Móvil
+                                </div>
+                                <span className="text-[10px] opacity-50">{activeTab === 'pm' ? '▼' : '▶'}</span>
+                            </button>
+                            {activeTab === 'pm' && <div onClick={() => copyToClipboard('04123793832')} className="bg-black/40 border border-white/10 p-4 rounded-2xl text-[10px] font-mono cursor-pointer animate-in slide-in-from-top-2">V-21.191.915 / 0412 3793832</div>}
+
+                            {/* PAYPAL */}
+                            <button onClick={() => setActiveTab(activeTab === 'pp' ? null : 'pp')} className={`w-full py-4 px-6 rounded-2xl flex items-center justify-between border transition-all ${activeTab === 'pp' ? 'bg-[#003087] text-white border-transparent' : 'bg-white/5 border-white/10 text-white'}`}>
+                                <div className="flex items-center font-black uppercase text-[10px] tracking-widest">
+                                    <svg viewBox="0 0 24 24" className="w-4 h-4 mr-3 fill-current"><path d="M20.067 8.478c.492.28 1.258 1.056 1.132 2.762-.15 2.051-1.208 4.223-4.102 4.223h-1.365c-.417 0-.776.304-.842.716l-.886 5.51c-.027.163-.168.273-.332.273H10.51c-.244 0-.413-.232-.353-.467l2.583-10.15c.066-.257.299-.441.565-.441h1.796c.417 0 .776-.304.842-.716l.241-1.498c.027-.163.168-.273.332-.273h3.551z"/></svg>
+                                    PayPal
+                                </div>
+                                <span className="text-[10px] opacity-50">{activeTab === 'pp' ? '▼' : '▶'}</span>
+                            </button>
+                            {activeTab === 'pp' && <div onClick={() => copyToClipboard('aleman.j.vzla@gmail.com')} className="bg-black/40 border border-white/10 p-4 rounded-2xl text-[10px] font-mono cursor-pointer animate-in slide-in-from-top-2">aleman.j.vzla@gmail.com</div>}
+                        </div>
+
+                        {/* Firma Visual */}
+                        <div className="mt-12 opacity-20 text-[9px] uppercase font-black tracking-[12px] text-[#00f2ff]">{t[lang].huella}</div>
+                        
+                        {/* Botón Admin Secreto */}
+                        <div onClick={() => setShowAdmin(true)} className="absolute bottom-6 left-1/2 -translate-x-1/2 w-12 h-1 bg-white/5 rounded-full cursor-pointer hover:bg-[#00f2ff]/30 transition-all"></div>
+                    </div>
+
+                    {/* Panel Administrativo */}
+                    {showAdmin && (
+                        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 backdrop-blur-3xl bg-black/90">
+                            <div className="bg-[#0d0d12] border border-[#00f2ff]/30 p-10 rounded-[45px] w-full max-w-[380px] text-center shadow-2xl">
+                                <h2 className="text-[#00f2ff] font-black uppercase tracking-[5px] mb-10 text-xs">Acceso Maestro</h2>
+                                {!isAdminAuth ? (
+                                    <div className="space-y-4">
+                                        <input type="password" placeholder="CLAVE" className="w-full bg-black border border-white/10 p-5 rounded-2xl text-center text-[#00f2ff] font-mono text-2xl outline-none focus:border-[#00f2ff]/50" value={adminPass} onChange={(e) => setAdminPass(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && (adminPass === 'Diego.2020' ? setIsAdminAuth(true) : showToast("X"))} />
+                                        <button onClick={() => adminPass === 'Diego.2020' ? setIsAdminAuth(true) : showToast("X")} className="w-full bg-[#00f2ff] text-black font-black py-4 rounded-2xl tracking-widest shadow-[0_0_20px_rgba(0,242,255,0.3)]">ENTRAR</button>
+                                    </div>
+                                ) : (
+                                    <div className="space-y-8 animate-in zoom-in-95 duration-300">
+                                        <div className="bg-white/5 p-5 rounded-3xl border border-white/5">
+                                            <p className="text-[10px] text-gray-500 uppercase font-black mb-1">Monto Actual</p>
+                                            <p className="text-5xl font-black text-white tracking-tighter">${recaudado.toLocaleString()}</p>
+                                        </div>
+                                        <input type="number" placeholder="Monto" className="w-full bg-black border border-white/10 p-5 rounded-3xl text-center text-4xl font-black text-[#00f2ff] outline-none" value={montoInput} onChange={(e) => setMontoInput(e.target.value)} />
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <button onClick={() => modMonto('sum')} className="bg-[#00f2ff]/10 border border-[#00f2ff]/30 text-[#00f2ff] font-black py-4 rounded-2xl hover:bg-[#00f2ff] hover:text-black transition-all">SUMAR</button>
+                                            <button onClick={() => modMonto('sub')} className="bg-red-500/10 border border-red-500/30 text-red-500 font-black py-4 rounded-2xl hover:bg-red-500 hover:text-white transition-all">RESTAR</button>
+                                            <button onClick={() => modMonto('set')} className="col-span-2 bg-white text-black font-black py-4 rounded-2xl mt-2 hover:bg-gray-200">FIJAR TOTAL</button>
+                                        </div>
+                                        <button onClick={() => {setIsAdminAuth(false); setShowAdmin(false); setAdminPass('');}} className="w-full text-[10px] text-gray-600 uppercase font-black tracking-widest opacity-50 mt-4 underline">Cerrar Sesión</button>
+                                    </div>
+                                )}
+                                <button onClick={() => setShowAdmin(false)} className="w-full mt-10 text-[9px] text-gray-700 uppercase font-black tracking-widest">Cerrar Panel</button>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Toast de Notificación */}
+                    {toast && <div className="fixed top-12 left-1/2 -translate-x-1/2 bg-[#00f2ff] text-black px-10 py-3 rounded-full font-black shadow-2xl z-[200] text-sm animate-in slide-in-from-top-10">{toast}</div>}
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
+
