@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GMR SAKURA | Oficial</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- Firebase App -->
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;500;700&display=swap');
+
+        :root {
+            --pink: #ff007f;
+            --blue: #00f3ff;
+            --gold: #ffcc00;
+            --silver: #e0e0e0;
+            --bronze: #cd7f32;
+            --glass: rgba(255, 255, 255, 0.03);
+            --border: rgba(255, 255, 255, 0.08);
+        }
+
+        body {
+            background: #050505;
+            color: #fff;
+            font-family: 'Rajdhani', sans-serif;
+            overflow-x: hidden;
+            margin: 0;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        #star-canvas {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            z-index: -1;
+            pointer-events: none;
+        }
+
+        .gmr-header {
+            font-family: 'Orbitron', sans-serif;
+            font-weight: 900;
+            background: linear-gradient(to bottom, #fff, var(--blue), var(--pink));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            filter: drop-shadow(0 0 10px rgba(0, 243, 255, 0.3));
+        }
+
+        .avatar-frame {
+            position: relative;
+            width: 150px; height: 150px;
+            margin: 0 auto;
+        }
+
+        .avatar-frame::after {
+            content: '';
+            position: absolute;
+            inset: -5px;
+            border-radius: 50%;
+            background: linear-gradient(45deg, var(--pink), var(--blue));
+            z-index: -1;
+            filter: blur(15px);
+            animation: rotate 4s linear infinite;
+        }
+
+        @keyframes rotate {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        /* Efecto Cristal Transparente Reforzado */
+        .glass-card {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 25px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+        }
+
+        .podium-card {
+            background: rgba(255, 255, 255, 0.02);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 20px;
+            padding: 15px;
+            text-align: center;
+            position: relative;
+        }
+
+        .rank-gold { border-color: var(--gold); box-shadow: 0 0 15px rgba(255, 204, 0, 0.2); }
+        .rank-silver { border-color: var(--silver); box-shadow: 0 0 15px rgba(224, 224, 224, 0.1); }
+        .rank-bronze { border-color: var(--bronze); box-shadow: 0 0 15px rgba(205, 127, 50, 0.1); }
+
+        .ripple {
+            position: absolute;
+            border-radius: 50%;
+            background: rgba(0, 243, 255, 0.4);
+            transform: scale(0);
+            animation: ripple-animation 0.6s linear;
+            pointer-events: none;
+        }
+
+        @keyframes ripple-animation {
+            to {
+                transform: scale(4);
+                opacity: 0;
+            }
+        }
+
+        .btn-whatsapp {
+            background: #25D366;
+            box-shadow: 0 0 15px rgba(37, 211, 102, 0.4);
+            transition: transform 0.2s;
+        }
+
+        .btn-whatsapp:active { transform: scale(0.95); }
+
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.85);
+            backdrop-filter: blur(15px);
+            z-index: 1000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .show-modal { display: flex; }
+
+        .toast-notify {
+            position: fixed;
+            bottom: 30px; left: 50%;
+            transform: translateX(-50%);
+            background: var(--blue);
+            color: #000;
+            padding: 12px 30px;
+            border-radius: 50px;
+            font-weight: 900;
+            display: none;
+            z-index: 2000;
+            box-shadow: 0 0 20px var(--blue);
+        }
+
+        .social-icon {
+            font-size: 24px;
+            color: rgba(255,255,255,0.5);
+            transition: all 0.3s;
+        }
+        .social-icon:hover {
+            color: var(--blue);
+            transform: translateY(-3px);
+            text-shadow: 0 0 10px var(--blue);
+        }
+
+        #view-admin {
+            position: fixed;
+            inset: 0;
+            background: #050505;
+            z-index: 5000;
+            padding: 24px;
+            overflow-y: auto;
+        }
+
+        #view-admin.hidden { display: none; }
+    </style>
+</head>
+<body class="pb-10">
+    <canvas id="star-canvas"></canvas>
+    <div id="toast" class="toast-notify uppercase tracking-widest">¡COPIADO CON ÉXITO!</div>
+
+    <div id="main-content" class="container mx-auto px-6 text-center pt-6 max-w-lg">
+
+        <!-- Selector de Idioma -->
+        <div class="flex justify-end gap-2 mb-6">
+            <button onclick="changeLang('es')" id="btn-es" class="px-4 py-1 rounded bg-blue-500/20 text-blue-400 text-xs font-bold border border-blue-500/30">ES</button>
+            <button onclick="changeLang('en')" id="btn-en" class="px-4 py-1 rounded bg-white/5 text-white/40 text-xs font-bold border border-white/10">EN</button>
+        </div>
+
+        <!-- Avatar -->
+        <div class="avatar-frame mb-6">
+            <img src="https://i.ibb.co/MkH478r5/avatar.jpg" class="w-full h-full rounded-full object-cover border-2 border-white/20" alt="Sakura">
+        </div>
+
+        <h1 class="gmr-header text-5xl mb-2">SAKURA</h1>
+        <p id="label-subtitle" class="text-xs tracking-[6px] text-cyan-400 font-bold mb-8 opacity-80 uppercase">Creador de Contenido</p>
+
+        <!-- Bio -->
+        <div class="mb-8">
+            <p id="txt-meta" class="text-gray-300 italic text-sm">"Conectando..."</p>
+        </div>
+
+        <!-- PODIO DE DONADORES -->
+        <div class="mb-10 px-2">
+            <h3 class="text-yellow-500 text-[10px] font-black uppercase tracking-[4px] mb-6 italic">--- Salón de la Fama ---</h3>
+            <div id="box-podium" class="grid grid-cols-3 gap-3 items-end">
+                <div id="rank-2" class="podium-card rank-silver scale-95 opacity-80">
+                    <i class="fas fa-medal text-gray-300 text-xl mb-1"></i>
+                    <p class="text-[9px] font-bold text-gray-400 uppercase truncate px-1">Vacío</p>
+                    <p class="text-[12px] font-black text-white">$0</p>
+                </div>
+                <div id="rank-1" class="podium-card rank-gold scale-105 z-10">
+                    <i class="fas fa-crown text-yellow-400 text-2xl mb-1"></i>
+                    <p class="text-[10px] font-black text-yellow-500 uppercase truncate px-1">Vacío</p>
+                    <p class="text-[14px] font-black text-white">$0</p>
+                </div>
+                <div id="rank-3" class="podium-card rank-bronze scale-90 opacity-70">
+                    <i class="fas fa-medal text-orange-600 text-xl mb-1"></i>
+                    <p class="text-[9px] font-bold text-orange-500 uppercase truncate px-1">Vacío</p>
+                    <p class="text-[11px] font-black text-white">$0</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Visitas -->
+        <div class="flex justify-center mb-10">
+            <div class="glass-card p-6 w-full max-w-[280px]">
+                <span id="label-visitas" class="block text-[10px] text-gray-500 font-bold uppercase mb-1 tracking-widest">Visitas Globales</span>
+                <span id="val-visitas" class="text-4xl font-black text-white italic">0</span>
+            </div>
+        </div>
+
+        <!-- Métodos de Pago -->
+        <div class="mb-10">
+            <h3 id="label-methods" class="text-gray-500 text-[10px] font-bold uppercase tracking-widest mb-6 italic">--- Métodos de Donación ---</h3>
+            <div id="methods-list" class="space-y-4 text-left">
+                <!-- PayPal -->
+                <div id="method-paypal" onclick="handlePaymentClick(this, this.dataset.val)" data-val="aleman.j.fl.studio27@gmail.com" class="glass-card p-4 flex items-center gap-4 cursor-pointer hover:border-blue-400/40">
+                    <div class="w-12 h-12 flex items-center justify-center bg-white rounded-xl"><img src="https://upload.wikimedia.org/wikipedia/commons/b/b5/PayPal.svg" class="w-8"></div>
+                    <div>
+                        <p class="font-bold text-sm">PayPal</p>
+                        <p class="text-[11px] text-cyan-400 font-mono method-val">aleman.j.fl.studio27@gmail.com</p>
+                    </div>
+                </div>
+                <!-- Binance -->
+                <div id="method-binance" onclick="handlePaymentClick(this, this.dataset.val)" data-val="aleman.j.fl.studio27@gmail.com" class="glass-card p-4 flex items-center gap-4 cursor-pointer hover:border-yellow-400/40">
+                    <div class="w-12 h-12 flex items-center justify-center bg-[#121212] rounded-xl border border-yellow-500/20"><svg viewBox="0 0 24 24" fill="#F3BA2F" class="w-8"><path d="M16.624 13.9202l2.711 2.71172L12 23.9406l-7.335-7.30868 2.711-2.71172L12 18.5189l4.624-4.5987zM12 0l7.335 7.30868-2.711 2.71172L12 5.42168l-4.624 4.59872-2.711-2.71172L12 0zm10.035 9.39704L24 11.3621l-2.035 2.035L19.93 11.3621l2.035-1.96506zM2.035 9.39704L4.07 11.3621l-2.035 1.96506L0 11.3621l2.035-1.96506zM12 9.14324l2.219 2.21886L12 13.58096l-2.219-2.21886L12 9.14324z"></path></svg></div>
+                    <div>
+                        <p class="font-bold text-sm">Binance Pay</p>
+                        <p class="text-[11px] text-yellow-500 font-mono method-val">aleman.j.fl.studio27@gmail.com</p>
+                    </div>
+                </div>
+                <!-- Pago Móvil (Actualizado con Código 0163 y Estilo Homogéneo) -->
+                <div id="method-movil" onclick="handlePaymentClick(this, this.dataset.val)" data-val="04123793832 | V-21191915 | Bco. Tesoro (0163)" class="glass-card p-4 flex items-center gap-4 cursor-pointer hover:border-red-400/40">
+                    <div class="w-12 h-12 flex items-center justify-center bg-[#1a1a1a] rounded-xl border border-red-500/20">
+                        <span class="text-red-500 font-black text-xl italic">BT</span>
+                    </div>
+                    <div>
+                        <p class="font-bold text-sm">Pago Móvil</p>
+                        <p class="text-[11px] text-red-500 font-mono method-val italic uppercase">04123793832 | V-21191915 | Bco. Tesoro (0163)</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Validar Donación -->
+        <div class="glass-card p-6 mb-12 border-cyan-500/30">
+            <h3 id="label-valid" class="text-cyan-400 text-xs font-bold uppercase mb-6 tracking-widest italic">Validar Donación</h3>
+            <div class="space-y-3 mb-6">
+                <input type="text" id="rep-n" placeholder="Tu Nombre / Nickname" class="w-full bg-black/40 border border-white/10 p-4 rounded-xl text-sm outline-none focus:border-cyan-500 text-white">
+                <select id="rep-p" class="w-full bg-black/40 border border-white/10 p-4 rounded-xl text-sm outline-none focus:border-cyan-500 text-gray-400">
+                    <option value="" disabled selected>Método de Pago</option>
+                    <option value="PayPal">PayPal</option>
+                    <option value="Binance">Binance</option>
+                    <option value="Pago Movil">Pago Móvil</option>
+                </select>
+                <div class="grid grid-cols-2 gap-2">
+                    <input type="number" id="rep-m" placeholder="Monto ($)" class="bg-black/40 border border-white/10 p-4 rounded-xl text-sm outline-none focus:border-cyan-500 text-white">
+                    <input type="text" id="rep-r" placeholder="Referencia" class="bg-black/40 border border-white/10 p-4 rounded-xl text-sm outline-none focus:border-cyan-500 text-white">
+                </div>
+                <button onclick="enviarReporte()" class="w-full bg-cyan-600/20 border border-cyan-500 text-cyan-400 py-4 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-cyan-600/40 transition-all">
+                    <span id="label-btn-send">Enviar para aprobación</span>
+                </button>
+            </div>
+            
+            <div class="border-t border-white/10 pt-6">
+                <p class="text-[10px] text-gray-500 mb-4 uppercase font-bold">¿Tu donación no aparece? Contáctame:</p>
+                <a id="btn-wa-soporte" href="https://api.whatsapp.com/send/?phone=584123794832&text=Hola+Sakura!+Tengo+un+problema+con+mi+donacion+manual&type=phone_number" target="_blank" class="btn-whatsapp text-white text-[10px] font-bold tracking-widest px-8 py-3 rounded-full inline-flex items-center gap-2">
+                    <i class="fab fa-whatsapp text-lg"></i> CONTACTO SOPORTE
+                </a>
+            </div>
+        </div>
+
+        <!-- Muro de Comentarios -->
+        <div class="glass-card p-6 mb-12 border-pink-500/20 text-left">
+            <h3 id="label-muro" class="text-pink-500 text-xs font-bold uppercase mb-6 tracking-widest text-center">Muro de Comentarios</h3>
+            <div id="box-muro" class="space-y-3 mb-6 max-h-80 overflow-y-auto pr-2"></div>
+            <input type="text" id="msg-n" placeholder="Nombre" class="w-full bg-white/5 border border-white/10 p-3 rounded-xl mb-2 text-sm text-white outline-none focus:border-pink-500">
+            <textarea id="msg-m" placeholder="Escribe tu mensaje..." class="w-full bg-white/5 border border-white/10 p-3 rounded-xl mb-3 text-sm h-24 resize-none text-white outline-none focus:border-pink-500"></textarea>
+            <button onclick="enviarMensaje()" class="w-full bg-pink-600 py-4 rounded-xl font-bold text-xs uppercase text-white hover:bg-pink-500 transition-colors shadow-[0_0_15px_rgba(255,0,127,0.4)]">
+                <span id="label-btn-post">Publicar Comentario</span>
+            </button>
+        </div>
+
+        <!-- Redes Sociales -->
+        <div id="social-links-box" class="flex justify-center gap-8 mb-12">
+            <a href="#" id="link-tt" target="_blank" class="social-icon"><i class="fab fa-tiktok"></i></a>
+            <a href="#" id="link-ig" target="_blank" class="social-icon"><i class="fab fa-instagram"></i></a>
+            <a href="#" id="link-fb" target="_blank" class="social-icon"><i class="fab fa-facebook-f"></i></a>
+            <a href="#" id="link-yt" target="_blank" class="social-icon"><i class="fab fa-youtube"></i></a>
+        </div>
+
+        <div class="flex flex-col items-center gap-2 mb-10 opacity-60 hover:opacity-100 transition-opacity">
+            <button onclick="abrirLogin()" class="text-gray-500 hover:text-pink-500 text-[9px] font-black tracking-[4px] border border-white/10 px-8 py-2 rounded-full uppercase">
+                Panel de Administración
+            </button>
+        </div>
+
+        <footer class="opacity-30 text-[9px] tracking-[5px] uppercase mt-10 pb-10">
+            GMR SAKURA • 2024 • OFICIAL
+        </footer>
+    </div>
+
+    <!-- MODAL LOGIN -->
+    <div id="modal-login" class="modal-overlay">
+        <div class="glass-card p-8 w-full max-w-sm text-center border-pink-500/50">
+            <h2 class="text-pink-500 font-black mb-6 uppercase tracking-widest">Acceso Admin</h2>
+            <input type="password" id="admin-pass" placeholder="Password" class="w-full bg-black/60 border border-white/10 p-4 rounded-xl mb-4 text-center text-white outline-none focus:border-pink-500">
+            <div class="flex gap-2">
+                <button onclick="cerrarModales()" class="flex-1 bg-white/5 py-3 rounded-xl text-[10px] font-bold uppercase text-white border border-white/10">Cerrar</button>
+                <button onclick="verificarPass()" class="flex-1 bg-pink-600 py-3 rounded-xl text-[10px] font-bold uppercase text-white shadow-lg">Entrar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- PANEL ADMIN -->
+    <div id="view-admin" class="hidden">
+        <div class="flex justify-between items-center mb-10 border-b border-white/10 pb-4">
+            <h2 class="text-2xl font-black text-cyan-400 italic uppercase">Dashboard Pro</h2>
+            <button onclick="cerrarSesion()" class="text-xs text-red-500 font-bold uppercase underline">Cerrar Sesión</button>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+            <div class="glass-card p-6 border-cyan-500/30">
+                <p class="text-[10px] font-bold text-cyan-400 mb-2 uppercase tracking-widest">Biografía (Subtítulo)</p>
+                <textarea id="admin-meta-in" class="w-full bg-black border border-white/10 p-3 text-sm rounded-xl mb-4 h-24 text-white outline-none focus:border-cyan-500"></textarea>
+                <button onclick="guardarMeta()" class="w-full bg-cyan-600 py-3 rounded-xl text-[10px] font-bold uppercase text-white shadow-lg">Actualizar Bio</button>
+            </div>
+            
+            <div class="glass-card p-6 border-blue-500/30">
+                <p class="text-[10px] font-bold text-blue-400 mb-4 uppercase tracking-widest">Enlaces de Perfiles</p>
+                <div class="space-y-3 mb-4">
+                    <input type="text" id="admin-tt" placeholder="TikTok URL" class="w-full bg-black/50 border border-white/10 p-3 rounded-xl text-xs text-white outline-none">
+                    <input type="text" id="admin-ig" placeholder="Instagram URL" class="w-full bg-black/50 border border-white/10 p-3 rounded-xl text-xs text-white outline-none">
+                    <input type="text" id="admin-fb" placeholder="Facebook URL" class="w-full bg-black/50 border border-white/10 p-3 rounded-xl text-xs text-white outline-none">
+                    <input type="text" id="admin-yt" placeholder="YouTube URL" class="w-full bg-black/50 border border-white/10 p-3 rounded-xl text-xs text-white outline-none">
+                </div>
+                <button onclick="guardarRedes()" class="w-full bg-blue-600 py-3 rounded-xl text-[10px] font-bold uppercase text-white shadow-lg">Guardar Enlaces</button>
+            </div>
+
+            <div class="glass-card p-6 border-yellow-500/30">
+                <p class="text-[10px] font-bold text-yellow-500 mb-4 uppercase tracking-widest">Datos de Pago</p>
+                <div class="space-y-3 mb-4">
+                    <input type="text" id="admin-pay-paypal" placeholder="PayPal" class="w-full bg-black/50 border border-white/10 p-3 rounded-xl text-xs text-white outline-none">
+                    <input type="text" id="admin-pay-binance" placeholder="Binance" class="w-full bg-black/50 border border-white/10 p-3 rounded-xl text-xs text-white outline-none">
+                    <input type="text" id="admin-pay-movil" placeholder="Pago Móvil" class="w-full bg-black/50 border border-white/10 p-3 rounded-xl text-xs text-white outline-none">
+                </div>
+                <button onclick="guardarPagos()" class="w-full bg-yellow-600 py-3 rounded-xl text-[10px] font-bold uppercase text-white shadow-lg">Actualizar Pagos</button>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <section>
+                <h3 class="text-cyan-400 text-xs font-black uppercase mb-6 tracking-[3px] italic">--- Reportes por Validar ---</h3>
+                <div id="admin-reports" class="space-y-4 mb-10"></div>
+            </section>
+            <section>
+                <h3 class="text-yellow-500 text-xs font-black uppercase mb-6 tracking-[3px] italic">--- Lista de Donadores ---</h3>
+                <div id="admin-donors" class="space-y-2 pb-10"></div>
+            </section>
+        </div>
+    </div>
+
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyCvE5AF6af_PUA_DPop7LGNc73-86G7uA",
+            authDomain: "donaciones-a-sakura.firebaseapp.com",
+            databaseURL: "https://donaciones-a-sakura-default-rtdb.firebaseio.com",
+            projectId: "donaciones-a-sakura",
+            storageBucket: "donaciones-a-sakura.appspot.com",
+            appId: "1:200998537661:web:624d542cc488c6a9b76ad4"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+
+        let currentLang = 'es';
+        const texts = {
+            es: { sub: "Creador de Contenido", vis: "Visitas Globales", meth: "Métodos de Donación", val: "Validar Donación", send: "Enviar para aprobación", muro: "Muro de Comentarios", post: "Publicar Comentario" },
+            en: { sub: "Content Creator", vis: "Global Visits", meth: "Donation Methods", val: "Validate Donation", send: "Submit for approval", muro: "Fan Wall", post: "Post Comment" }
+        };
+
+        function changeLang(l) {
+            currentLang = l;
+            document.getElementById('btn-es').className = l === 'es' ? 'px-4 py-1 rounded bg-blue-500/20 text-blue-400 text-xs font-bold border border-blue-500/30' : 'px-4 py-1 rounded bg-white/5 text-white/40 text-xs font-bold border border-white/10';
+            document.getElementById('btn-en').className = l === 'en' ? 'px-4 py-1 rounded bg-blue-500/20 text-blue-400 text-xs font-bold border border-blue-500/30' : 'px-4 py-1 rounded bg-white/5 text-white/40 text-xs font-bold border border-white/10';
+            const t = texts[l];
+            document.getElementById('label-subtitle').innerText = t.sub;
+            document.getElementById('label-visitas').innerText = t.vis;
+            document.getElementById('label-methods').innerText = t.meth;
+            document.getElementById('label-valid').innerText = t.val;
+            document.getElementById('label-btn-send').innerText = t.send;
+            document.getElementById('label-muro').innerText = t.muro;
+            document.getElementById('label-btn-post').innerText = t.post;
+        }
+
+        function handlePaymentClick(el, val) {
+            const ripple = document.createElement('span');
+            ripple.classList.add('ripple');
+            el.appendChild(ripple);
+            ripple.style.left = `0px`;
+            ripple.style.top = `0px`;
+            ripple.style.width = ripple.style.height = `${el.offsetWidth}px`;
+            setTimeout(() => ripple.remove(), 600);
+            copyText(val);
+        }
+
+        function copyText(val) {
+            const el = document.createElement('textarea');
+            el.value = val;
+            document.body.appendChild(el);
+            el.select();
+            document.execCommand('copy');
+            document.body.removeChild(el);
+            const t = document.getElementById('toast');
+            t.style.display = 'block';
+            setTimeout(() => t.style.display = 'none', 2500);
+        }
+
+        function verificarPass() {
+            if(document.getElementById('admin-pass').value === "Diego.2020") {
+                cerrarModales();
+                document.getElementById('view-admin').classList.remove('hidden');
+                document.getElementById('main-content').classList.add('hidden');
+                initAdminSync();
+            } else { alert("Acceso Denegado"); }
+        }
+
+        function cerrarSesion() {
+            document.getElementById('view-admin').classList.add('hidden');
+            document.getElementById('main-content').classList.remove('hidden');
+            document.getElementById('admin-pass').value = '';
+        }
+
+        function cerrarModales() { document.querySelectorAll('.modal-overlay').forEach(m => m.classList.remove('show-modal')); }
+        function abrirLogin() { document.getElementById('modal-login').classList.add('show-modal'); }
+
+        db.ref('visitas').transaction(v => (v || 0) + 1);
+        db.ref('visitas').on('value', s => document.getElementById('val-visitas').innerText = s.val() || 0);
+        
+        db.ref('config').on('value', s => {
+            const cfg = s.val() || {};
+            document.getElementById('txt-meta').innerText = `"${cfg.meta || 'Bienvenidos'}"`;
+            document.getElementById('admin-meta-in').value = cfg.meta || '';
+            
+            const redes = cfg.redes || {};
+            document.getElementById('link-tt').href = redes.tt || "#";
+            document.getElementById('link-ig').href = redes.ig || "#";
+            document.getElementById('link-fb').href = redes.fb || "#";
+            document.getElementById('link-yt').href = redes.yt || "#";
+            document.getElementById('admin-tt').value = redes.tt || '';
+            document.getElementById('admin-ig').value = redes.ig || '';
+            document.getElementById('admin-fb').value = redes.fb || '';
+            document.getElementById('admin-yt').value = redes.yt || '';
+
+            const pagos = cfg.pagos || {};
+            const p_paypal = pagos.paypal || 'aleman.j.fl.studio27@gmail.com';
+            const p_binance = pagos.binance || 'aleman.j.fl.studio27@gmail.com';
+            const p_movil = pagos.movil || '04123793832 | V-21191915 | Bco. Tesoro (0163)';
+
+            updatePaymentUI('method-paypal', p_paypal);
+            updatePaymentUI('method-binance', p_binance);
+            updatePaymentUI('method-movil', p_movil);
+
+            document.getElementById('admin-pay-paypal').value = p_paypal;
+            document.getElementById('admin-pay-binance').value = p_binance;
+            document.getElementById('admin-pay-movil').value = p_movil;
+        });
+
+        function updatePaymentUI(id, val) {
+            const el = document.getElementById(id);
+            if(el) {
+                el.dataset.val = val;
+                el.querySelector('.method-val').innerText = val;
+            }
+        }
+
+        db.ref('mensajes').limitToLast(15).on('value', s => {
+            let h = "";
+            s.forEach(c => {
+                const d = c.val();
+                h = `<div class="glass-card p-4 rounded-2xl border-l-4 border-pink-500 mb-3"><p class="text-[10px] font-black text-pink-500 uppercase">${d.nombre}</p><p class="text-xs text-gray-200">${d.mensaje}</p></div>` + h;
+            });
+            document.getElementById('box-muro').innerHTML = h || "<p class='text-center text-gray-600 text-xs py-4'>Sin mensajes...</p>";
+        });
+
+        db.ref('donadores').on('value', s => {
+            let list = []; s.forEach(c => { list.push({id: c.key, ...c.val()}); });
+            list.sort((a,b) => b.monto - a.monto);
+            updatePodiumUI('rank-1', list[0]);
+            updatePodiumUI('rank-2', list[1]);
+            updatePodiumUI('rank-3', list[2]);
+            let ah = "";
+            list.forEach((d, index) => { 
+                ah += `<div class="flex justify-between items-center bg-white/5 p-3 rounded-xl border border-white/10 mb-2">
+                    <div class="flex items-center gap-3">
+                        <span class="text-yellow-500 font-black text-xs">#${index+1}</span>
+                        <span class="text-[11px] text-white font-bold uppercase truncate max-w-[120px]">${d.nombre}</span>
+                        <span class="text-[11px] text-cyan-400 font-mono italic">$${d.monto}</span>
+                    </div>
+                    <button onclick="if(confirm('¿Eliminar a ${d.nombre}?')) db.ref('donadores/${d.id}').remove()" class="text-red-500 p-2"><i class="fas fa-trash-alt"></i></button>
+                </div>`; 
+            });
+            document.getElementById('admin-donors').innerHTML = ah || "<p class='text-xs text-gray-600'>No hay donadores</p>";
+        });
+
+        function updatePodiumUI(divId, data) {
+            const div = document.getElementById(divId);
+            const nameEl = div.querySelector('p:nth-of-type(1)');
+            const amountEl = div.querySelector('p:nth-of-type(2)');
+            if(data) {
+                nameEl.innerText = data.nombre;
+                amountEl.innerText = `$${data.monto}`;
+                div.style.opacity = "1";
+            } else {
+                nameEl.innerText = "Vacío";
+                amountEl.innerText = "$0";
+                div.style.opacity = "0.5";
+            }
+        }
+
+        function initAdminSync() {
+            db.ref('reportes_pendientes').on('value', s => {
+                let h = "";
+                s.forEach(c => {
+                    const r = c.val();
+                    h += `<div class="glass-card p-5 border-l-4 border-cyan-500 mb-4 shadow-xl">
+                        <p class="text-sm font-black text-white uppercase mb-1">${r.nombre} • $${r.monto}</p>
+                        <p class="text-[10px] text-cyan-400 font-mono bg-black/40 p-2 rounded mb-4">REF: ${r.referencia}</p>
+                        <div class="grid grid-cols-2 gap-2">
+                            <button onclick="db.ref('donadores').push({nombre:'${r.nombre}', monto:${r.monto}}); db.ref('reportes_pendientes/${c.key}').remove()" class="bg-green-600 py-3 rounded-xl text-[9px] text-white font-black uppercase">Aprobar</button>
+                            <button onclick="db.ref('reportes_pendientes/${c.key}').remove()" class="bg-red-600 py-3 rounded-xl text-[9px] text-white font-black uppercase">Borrar</button>
+                        </div>
+                    </div>`;
+                });
+                document.getElementById('admin-reports').innerHTML = h || "<div class='text-center py-10 opacity-40 italic text-xs'>Sin reportes</div>";
+            });
+        }
+
+        function guardarMeta() { db.ref('config/meta').set(document.getElementById('admin-meta-in').value); alert("Bio actualizada"); }
+        function guardarRedes() {
+            db.ref('config/redes').set({ tt: document.getElementById('admin-tt').value, ig: document.getElementById('admin-ig').value, fb: document.getElementById('admin-fb').value, yt: document.getElementById('admin-yt').value });
+            alert("Redes guardadas");
+        }
+        function guardarPagos() {
+            db.ref('config/pagos').set({ paypal: document.getElementById('admin-pay-paypal').value, binance: document.getElementById('admin-pay-binance').value, movil: document.getElementById('admin-pay-movil').value });
+            alert("Pagos actualizados");
+        }
+
+        function enviarMensaje() {
+            const n = document.getElementById('msg-n').value, m = document.getElementById('msg-m').value;
+            if(n && m) { db.ref('mensajes').push({ nombre: n, mensaje: m, time: Date.now() }); document.getElementById('msg-n').value = ''; document.getElementById('msg-m').value = ''; }
+        }
+
+        function enviarReporte() {
+            const n = document.getElementById('rep-n').value, m = document.getElementById('rep-m').value, p = document.getElementById('rep-p').value, r = document.getElementById('rep-r').value;
+            if(n && m && p && r) {
+                db.ref('reportes_pendientes').push({ nombre: n, monto: parseFloat(m), metodo: p, referencia: r, fecha: new Date().toLocaleString() });
+                alert("Reporte enviado."); document.getElementById('rep-n').value=''; document.getElementById('rep-m').value=''; document.getElementById('rep-r').value='';
+            } else { alert("Completa los campos."); }
+        }
+
+        const cvs = document.getElementById('star-canvas');
+        const ctx = cvs.getContext('2d');
+        let stars = [];
+        function resize() { cvs.width = window.innerWidth; cvs.height = window.innerHeight; }
+        window.addEventListener('resize', resize);
+        resize();
+        for(let i=0; i<70; i++) stars.push({ x: Math.random()*cvs.width, y: Math.random()*cvs.height, s: Math.random()*2, v: Math.random()*0.2+0.05 });
+        function draw() { ctx.clearRect(0,0,cvs.width,cvs.height); ctx.fillStyle = "rgba(255,255,255,0.4)"; stars.forEach(s => { ctx.beginPath(); ctx.arc(s.x, s.y, s.s, 0, Math.PI*2); ctx.fill(); s.y -= s.v; if(s.y < 0) s.y = cvs.height; }); requestAnimationFrame(draw); }
+        draw();
+    </script>
+</body>
+</html>
